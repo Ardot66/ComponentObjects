@@ -4,25 +4,31 @@
 #include <stddef.h>
 
 #define INTERFACE_VAR(name) I_ ## name
+#define COMPONENT_VTABLE(name) V_ ## name
 #define COMPONENT_VAR(name) C_ ## name
 
-#define IMPLEMENT(interface, ...) &(interface){.InterfaceData = {.Interface = &INTERFACE_VAR(interface), .Component = NULL}, ## __VA_ARGS__},
+#define INTERFACE(interface) interface *interface;
+#define IMPLEMENT(interface, ...) . interface = &(interface){.Interface = &INTERFACE_VAR(interface), ## __VA_ARGS__}
 
 #define INTERFACE_DECLARE(name, ...) \
 extern Interface INTERFACE_VAR(name);\
 typedef struct name name;\
-struct name {ComponentInterface InterfaceData; __VA_ARGS__};
+struct name {Interface * Interface; __VA_ARGS__};
 
 #define INTERFACE_DEFINE(name)\
 Interface INTERFACE_VAR(name);
 
-#define COMPONENT_DECLARE(name, ...)\
+#define COMPONENT_DECLARE(name, interfaces, ...)\
 extern Component COMPONENT_VAR(name);\
+typedef struct COMPONENT_VTABLE(name) COMPONENT_VTABLE(name);\
+struct COMPONENT_VTABLE(name) {interfaces}; \
 typedef struct name name;\
 struct name {__VA_ARGS__};
 
 #define COMPONENT_DEFINE(name, ...)\
-Component COMPONENT_VAR(name) = {.Size = sizeof(name), .ImplementsCount = 0, .Implements = (ComponentInterface[]){__VA_ARGS__ {0}}};
+Component COMPONENT_VAR(name) = {.Size = sizeof(name), .ImplementsCount = sizeof(COMPONENT_VTABLE(name)) / sizeof(void *), .VTable = &(COMPONENT_VTABLE(name)){__VA_ARGS__}};
+
+#define VTABLE(name) ((COMPONENT_VTABLE(name) *)COMPONENT_VAR(name).VTable)
 
 typedef struct Interface Interface;
 struct Interface
@@ -30,19 +36,17 @@ struct Interface
     const size_t Filler;
 };
 
-typedef struct ComponentInterface ComponentInterface;
-struct ComponentInterface
-{
-    const Interface *Interface;
-    const Component *Component;
-};
-
 typedef struct Component Component;
 struct Component
 {
     const size_t Size;
-    size_t ImplementsCount;
-    ComponentInterface *Implements;
+    const size_t ImplementsCount;
+
+    union
+    {
+        const Interface **Implements;
+        const void *VTable;
+    };
 };
 
 struct Object
