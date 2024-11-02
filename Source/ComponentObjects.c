@@ -102,12 +102,12 @@ int ObjectIterateComponents(const Object *object, void **component)
         return 0;
     }
 
-    ComponentData *componentData = COMPONENT_DATA(component);
+    ComponentData *componentData = COMPONENT_DATA(*component);
 
-    if(componentData == NULL)
+    if(((ComponentData *)((char *)*component + componentData->Component->Size))->Component == NULL)
         return 1;
 
-    *component = (char *)*component + sizeof(ComponentData) + componentData->Component->Size;
+    *component = ((char *)*component) + sizeof(ComponentData) + componentData->Component->Size;
     return 0;
 }
 

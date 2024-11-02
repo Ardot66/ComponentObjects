@@ -3,33 +3,32 @@
 
 #include <stddef.h>
 
-#define INTERFACE_VAR(name) I_ ## name
 #define COMPONENT_VTABLE(name) V_ ## name
-#define COMPONENT_VAR(name) C_ ## name
+#define TYPE_VAR(name) T_ ## name
 
 #define INTERFACE(interface) interface *interface;
-#define IMPLEMENT(interface, ...) . interface = &(interface){.Interface = &INTERFACE_VAR(interface), ## __VA_ARGS__}
+#define IMPLEMENT(interface, ...) . interface = &(interface){.Interface = &TYPE_VAR(interface), ## __VA_ARGS__}
 
 #define INTERFACE_DECLARE(name, ...) \
-extern Interface INTERFACE_VAR(name);\
+extern Interface TYPE_VAR(name);\
 typedef struct name name;\
 struct name {Interface * Interface; __VA_ARGS__};
 
 #define INTERFACE_DEFINE(name)\
-Interface INTERFACE_VAR(name);
+Interface TYPE_VAR(name);
 
 #define COMPONENT_DECLARE(name, interfaces, ...)\
-extern Component COMPONENT_VAR(name);\
+extern Component TYPE_VAR(name);\
 typedef struct COMPONENT_VTABLE(name) COMPONENT_VTABLE(name);\
 struct COMPONENT_VTABLE(name) {interfaces}; \
 typedef struct name name;\
 struct name {__VA_ARGS__};
 
 #define COMPONENT_DEFINE(name, ...)\
-Component COMPONENT_VAR(name) = {.Size = sizeof(name), .ImplementsCount = sizeof(COMPONENT_VTABLE(name)) / sizeof(void *), .VTable = &(COMPONENT_VTABLE(name)){__VA_ARGS__}};
+Component TYPE_VAR(name) = {.Size = sizeof(name), .ImplementsCount = sizeof(COMPONENT_VTABLE(name)) / sizeof(void *), .VTable = &(COMPONENT_VTABLE(name)){__VA_ARGS__}};
 
-#define VTABLE(name) ((COMPONENT_VTABLE(name) *)COMPONENT_VAR(name).VTable)
-#define TYPEOF(name) ((Component *)&COMPONENT_VAR(name))
+#define VTABLE(name) ((COMPONENT_VTABLE(name) *)TYPE_VAR(name).VTable)
+#define TYPEOF(name) (&TYPE_VAR(name))
 
 #define COMPONENTS(...) ((const Component*[]){__VA_ARGS__})
 #define COMPONENT_DATA(component) ((ComponentData *)((char *)component - sizeof(ComponentData)))
@@ -62,8 +61,8 @@ struct Object
 typedef struct ComponentData ComponentData;
 struct ComponentData
 {
-    const Object *Object;
     const Component *Component;
+    const Object *Object;
 };
 
 size_t ObjectGetSize(const size_t componentCount, const Component **components);
