@@ -44,7 +44,7 @@ COMPONENT_DEFINE(Trapezoid,
     IMPLEMENT(Shape, .GetArea = Trapezoid_GetArea)
 )
 
-int main (int argCount, char **argValues)
+void TestComponents()
 {
     Rectangle rectangle;
     rectangle.X = 1;
@@ -72,6 +72,56 @@ int main (int argCount, char **argValues)
         else if(x == 1)
             TEST(area == ((trapezoid.BottomLength + trapezoid.TopLength) * trapezoid.Height) / 2, "")
     }
-    
+}
+
+void TestObjects()
+{
+    const size_t componentCount = 2;
+    const Component **objectComponents = COMPONENTS(TYPEOF(Rectangle), TYPEOF(Trapezoid));
+
+    char objectData[ObjectGetSize(2, objectComponents)];
+    Object *object = (Object *)objectData;
+
+    ObjectInititalize(object, componentCount, objectComponents);
+
+    Rectangle *rectangle;
+    Trapezoid *trapezoid;
+
+    for(void *component = NULL; !ObjectIterateComponents(object, &component);)
+    {
+        if(COMPONENT_DATA(component)->Component == TYPEOF(Rectangle))
+        {
+            rectangle = component;
+            rectangle->X = 10;
+            rectangle->Y = 5;
+        }
+        else if(COMPONENT_DATA(component)->Component == TYPEOF(Trapezoid))
+        {
+            trapezoid = component;
+            trapezoid->BottomLength = 5;
+            trapezoid->TopLength = 3;
+            trapezoid->Height = 2;
+        }
+    }
+
+    size_t totalArea = 0;
+
+    for(void *component = NULL; !ObjectIterateComponents(object, &component);)
+    {
+        Shape *shapeVTable;
+        if(ComponentCast(COMPONENT_DATA(component)->Component, TYPEOF(Shape), (void **)&shapeVTable))
+            continue;
+
+        totalArea += shapeVTable->GetArea(component);
+    }
+
+    TEST(totalArea == Rectangle_GetArea(rectangle) + Trapezoid_GetArea(trapezoid), "")
+}
+
+int main (int argCount, char **argValues)
+{
+    TestComponents();
+    TestObjects();
+
     TESTEND;
 }
