@@ -1,29 +1,12 @@
-SHELL = cmd
-
-BIN = Bin
+BIN = $(BASEDIR)/Bin
 SOURCE = Source
-TEMP = Temp
-TESTS = Tests
+TEMP = $(BASEDIR)/Temp
 
 COMPONENT_OBJECTS_NAME = ComponentObjects
-TESTS_NAME = Tests
-
 COMPONENT_OBJECTS_DLL = $(BIN)/lib$(COMPONENT_OBJECTS_NAME).dll
-TESTS_EXE = $(BIN)/$(TESTS_NAME).exe
 
-INCLUDE := $(dir $(addprefix -I,$(abspath $(wildcard */*.h))))
-
-All: $(COMPONENT_OBJECTS_DLL) $(TESTS_EXE) 
-	$(TESTS_EXE)
+All: $(COMPONENT_OBJECTS_DLL)
 	
 $(COMPONENT_OBJECTS_DLL): $(SOURCE)/$(COMPONENT_OBJECTS_NAME).c
 	gcc -c -fPIC $(SOURCE)/$(COMPONENT_OBJECTS_NAME).c -o $(TEMP)/$(COMPONENT_OBJECTS_NAME).o
 	gcc -shared $(TEMP)/$(COMPONENT_OBJECTS_NAME).o -o $(COMPONENT_OBJECTS_DLL)
-
-$(TESTS_EXE): $(COMPONENT_OBJECTS_DLL) $(TESTS)/$(TESTS_NAME).c
-	gcc -c $(INCLUDE) $(TESTS)/$(TESTS_NAME).c -o $(TEMP)/$(TESTS_NAME).o
-	gcc -L$(BIN) -l$(COMPONENT_OBJECTS_NAME) $(TEMP)/$(TESTS_NAME).o -o $(TESTS_EXE)
-
-Clean:
-	DEL /Q $(BIN)\*.dll $(BIN)\*.exe
-	DEL /Q $(TEMP)\*.o
