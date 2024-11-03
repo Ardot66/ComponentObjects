@@ -78,16 +78,16 @@ void TestObjects()
 {
     const size_t componentCount = 2;
     const Component **objectComponents = COMPONENTS(TYPEOF(Rectangle), TYPEOF(Trapezoid));
-
+    
     char objectData[ObjectGetSize(2, objectComponents)];
-    Object *object = (Object *)objectData;
+    void *object = (void *)objectData;
 
     ObjectInititalize(object, componentCount, objectComponents);
 
     Rectangle *rectangle;
     Trapezoid *trapezoid;
-
-    for(void *component = NULL; !ObjectIterateComponents(object, &component);)
+    
+    FOR_EACH_COMPONENT(component, object)
     {
         if(COMPONENT_DATA(component)->Component == TYPEOF(Rectangle))
         {
@@ -104,9 +104,11 @@ void TestObjects()
         }
     }
 
+    TEST(ComponentGetObject(rectangle) == object, "ComponentGetObject is %p, but should be %p", ComponentGetObject(rectangle), object)
+
     size_t totalArea = 0;
 
-    for(void *component = NULL; !ObjectIterateComponents(object, &component);)
+    FOR_EACH_COMPONENT(component, object)
     {
         Shape *shapeVTable;
         if(ComponentCast(COMPONENT_DATA(component)->Component, TYPEOF(Shape), (void **)&shapeVTable))
