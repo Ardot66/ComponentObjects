@@ -59,8 +59,8 @@ void TestComponents()
     struct ShapePtr {void *Shape; const Shape *VTable;};
     struct ShapePtr shapes[shapesLength];
     
-    shapes[0] = (struct ShapePtr){.Shape = &rectangle, .VTable = VTABLE(Rectangle)->Shape};
-    shapes[1] = (struct ShapePtr){.Shape = &trapezoid, .VTable = VTABLE(Trapezoid)->Shape};
+    shapes[0] = (struct ShapePtr){.Shape = &rectangle, .VTable = INTERFACE_GET(Rectangle, Shape)};
+    shapes[1] = (struct ShapePtr){.Shape = &trapezoid, .VTable = INTERFACE_GET(Trapezoid, Shape)};
 
     for(size_t x = 0; x < shapesLength; x++)
     {
@@ -122,6 +122,10 @@ void TestObjects()
 
 int main (int argCount, char **argValues)
 {
+    INTERFACE_GET(Rectangle, Shape);
+
+    
+
     TestComponents();
     TestObjects();
 
