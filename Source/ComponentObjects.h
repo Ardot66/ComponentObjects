@@ -3,31 +3,31 @@
 
 #include <stddef.h>
 
-#define COMPONENT_VTABLE(name) V_ ## name
 #define TYPE_VAR(name) T_ ## name
+#define COMPONENT_INTERFACES_ENUM(name) E_ ## name
+#define COMPONENT_INTERFACE(name, interface) COMPONENT_INTERFACE_ ## name ## _ ## interface
 
-#define INTERFACE(interface) interface *interface;
-#define IMPLEMENT(interface, ...) . interface = &(interface){.Interface = &TYPE_VAR(interface), ## __VA_ARGS__}
+#define INTERFACE(name, interface) COMPONENT_INTERFACE(name, interface),
+#define IMPLEMENT(interface, ...) (const Interface **)(&(const interface){.Interface = &TYPE_VAR(interface), ## __VA_ARGS__}),
 
 #define INTERFACE_DECLARE(name, ...) \
 extern Interface TYPE_VAR(name);\
 typedef struct name name;\
-struct name {Interface * Interface; __VA_ARGS__};
+struct name {Interface *Interface; __VA_ARGS__};
 
 #define INTERFACE_DEFINE(name)\
 Interface TYPE_VAR(name);
 
 #define COMPONENT_DECLARE(name, interfaces, ...)\
 extern Component TYPE_VAR(name);\
-typedef struct COMPONENT_VTABLE(name) COMPONENT_VTABLE(name);\
-struct COMPONENT_VTABLE(name) {interfaces}; \
+enum COMPONENT_INTERFACES_ENUM(name) {interfaces COMPONENT_INTERFACE(name, END)};\
 typedef struct name name;\
 struct name {__VA_ARGS__};
 
 #define COMPONENT_DEFINE(name, ...)\
-Component TYPE_VAR(name) = {.Size = sizeof(name), .ImplementsCount = sizeof(COMPONENT_VTABLE(name)) / sizeof(void *), .VTable = &(COMPONENT_VTABLE(name)){__VA_ARGS__}};
+Component TYPE_VAR(name) = {.Size = sizeof(name), .ImplementsCount = COMPONENT_INTERFACE(name, END), .Implements = (const Interface**[COMPONENT_INTERFACE(name, END) + 1]){__VA_ARGS__ NULL}};
 
-#define VTABLE(name) ((COMPONENT_VTABLE(name) *)TYPE_VAR(name).VTable)
+#define INTERFACE_GET(component, interface) ((const interface *)TYPE_VAR(component).Implements[COMPONENT_INTERFACE(component, interface)])
 #define TYPEOF(name) (&TYPE_VAR(name))
 
 #define FOR_EACH_COMPONENT(componentVariableName, object) for(void *componentVariableName = (char *)object + sizeof(ComponentData); COMPONENT_DATA(componentVariableName)->Component != NULL; componentVariableName = (char *)componentVariableName + COMPONENT_DATA(componentVariableName)->Component->Size + sizeof(ComponentData))
@@ -46,12 +46,7 @@ struct Component
 {
     const size_t Size;
     const size_t ImplementsCount;
-
-    union
-    {
-        const Interface ***Implements;
-        const void *VTable;
-    };
+    const Interface ***Implements;
 };
 
 typedef struct ComponentData ComponentData;
