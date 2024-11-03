@@ -30,6 +30,8 @@ Component TYPE_VAR(name) = {.Size = sizeof(name), .ImplementsCount = sizeof(COMP
 #define VTABLE(name) ((COMPONENT_VTABLE(name) *)TYPE_VAR(name).VTable)
 #define TYPEOF(name) (&TYPE_VAR(name))
 
+#define FOR_EACH_COMPONENT(componentVariableName, object) for(void *componentVariableName = (char *)object + sizeof(ComponentData); COMPONENT_DATA(componentVariableName)->Component != NULL; componentVariableName = (char *)componentVariableName + COMPONENT_DATA(componentVariableName)->Component->Size + sizeof(ComponentData))
+
 #define COMPONENTS(...) ((const Component*[]){__VA_ARGS__})
 #define COMPONENT_DATA(component) ((ComponentData *)((char *)component - sizeof(ComponentData)))
 
@@ -52,23 +54,22 @@ struct Component
     };
 };
 
-typedef struct Object Object;
-struct Object
-{
-    size_t ComponentCount;
-};
-
 typedef struct ComponentData ComponentData;
 struct ComponentData
 {
     const Component *Component;
-    const Object *Object;
+};
+
+typedef struct ObjectEnd ObjectEnd;
+struct ObjectEnd
+{
+    void *NullPointer;
+    void *Object;
 };
 
 size_t ObjectGetSize(const size_t componentCount, const Component **components);
-void ObjectInititalize(Object *object, const size_t componentCount, const Component **components);
-int ObjectIterateComponents(const Object *object, void **component);
+void ObjectInititalize(void *object, const size_t componentCount, const Component **components);
 int ComponentCast(const Component *component, const Interface *interface, void **interfaceVTableDest);
-int ObjectGetFirstComponentOfType(const Object *object, const Interface *interface, void **componentDest, void **interfaceVTableDest);
+void *ComponentGetObject(const void *component);
 
 #endif
