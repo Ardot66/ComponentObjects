@@ -4,17 +4,17 @@
 #include <stddef.h>
 
 #define TYPE_VAR(name) T_ ## name
-#define COMPONENT_DEPENDENCY_ENUM(component) ED_ ## component
-#define COMPONENT_INTERFACES_ENUM(name) EI_ ## name
+#define COMPONENT_USES(component, dependentComponent) COMPONENT_DEPENDENCY_ ## component ## _ ## dependentComponent
+#define COMPONENT_USES_ENUM(component) ED_ ## component
 #define COMPONENT_INTERFACE(name, interface) COMPONENT_INTERFACE_ ## name ## _ ## interface
-#define COMPONENT_DEPENDENCY(component, dependentComponent) COMPONENT_DEPENDENCY_ ## component ## _ ## dependentComponent
+#define COMPONENT_INTERFACES_ENUM(name) EI_ ## name
 
-#define COMPONENT_USES_DECLARE(component, dependentComponent) COMPONENT_DEPENDENCY(component, componentDependency),
+#define COMPONENT_USES_DECLARE(component, dependentComponent) COMPONENT_USES(component, componentDependency),
 #define COMPONENT_USES_DEFINE(dependentComponent) ((Interface *)TYPEOF(dependentComponent)),
 
 #define COMPONENT_IMPLEMENTS_DECLARE(name, interface) COMPONENT_INTERFACE(name, interface),
 #define COMPONENT_IMPLEMENTS_DEFINE(interface, ...) (const Interface **)(&(const interface){.Interface = &TYPE_VAR(interface), ## __VA_ARGS__}),
-
+ 
 #define INTERFACE_DECLARE(name, ...) \
 extern Interface TYPE_VAR(name);\
 typedef struct name name;\
@@ -23,15 +23,21 @@ struct name {Interface *Interface; __VA_ARGS__};
 #define INTERFACE_DEFINE(name)\
 Interface TYPE_VAR(name);
 
-#define COMPONENT_DECLARE(name, interfaces, dependencies, ...)\
+#define COMPONENT_DECLARE(name, interfaces, uses, ...)\
 extern Component TYPE_VAR(name);\
 enum COMPONENT_INTERFACES_ENUM(name) {interfaces COMPONENT_INTERFACE(name, END)};\
-enum COMPONENT_DEPENDENCY_ENUM(name) {dependencies COMPONENT_DEPENDENCY(name, END)};\
+enum COMPONENT_USES_ENUM(name) {uses COMPONENT_USES(name, END)};\
 typedef struct name name;\
 struct name {__VA_ARGS__};
 
-#define COMPONENT_DEFINE(name, interfaces, depends)\
-Component TYPE_VAR(name) = {.Size = sizeof(name), .ImplementsCount = COMPONENT_INTERFACE(name, END), .Implements = (const Interface**[COMPONENT_INTERFACE(name, END) + 1]){interfaces NULL}};
+#define COMPONENT_DEFINE(name, interfaces, uses)\
+Component TYPE_VAR(name) = \
+{\
+    .Size = sizeof(name), .ImplementsCount = COMPONENT_INTERFACE(name, END), \
+    .Implements = (**Interface[COMPONENT_INTERFACE(name, END) + 1]){interfaces NULL}, \
+    .UsesCount = COMPONENT_USES(name, END), \
+    .Uses = (**Components[COMPONENT_USES(name, END) + 1]){uses NULL}\
+};\
 
 #define COMPONENT_GET_INTERFACE(component, interface) ((const interface *)TYPE_VAR(component).Implements[COMPONENT_INTERFACE(component, interface)])
 #define TYPEOF(name) (&TYPE_VAR(name))
@@ -53,19 +59,44 @@ struct Component
     const size_t Size;
     const size_t ImplementsCount;
     const Interface ***Implements;
+    const size_t UsesCount;
+    const Interface ***Uses;
 };
 
-typedef struct ComponentData ComponentData;
-struct ComponentData
+typedef struct ObjectComponent ObjectComponent;
+struct ObjectComponent
 {
-    const Component *Component;
+    Component *Component;
+    size_t Offset;
+    ObjectComponentInterface *Uses[];
 };
 
-typedef struct ObjectEnd ObjectEnd;
-struct ObjectEnd
+typedef struct ObjectComponentInterface ObjectComponentInterface;
+struct ObjectComponentInterface
 {
-    void *NullPointer;
-    void *Object;
+    ObjectComponent *Component;
+    void *InterfaceVTable;
+};
+
+typedef struct ObjectInterface ObjectInterface;
+struct ObjectInterface
+{
+    Interface *Interface;
+    ObjectComponentInterface ImplementingComponents[];  
+};
+
+typedef struct ObjectData ObjectData;
+struct ObjectData
+{
+    size_t TotalSize;
+    ObjectComponent *Components;
+    ObjectInterface **Interfaces;
+};
+
+typedef struct Object Object;
+struct Object
+{
+    const ObjectData *ObjectData;
 };
 
 size_t ObjectGetSize(const size_t componentCount, const Component **components);
