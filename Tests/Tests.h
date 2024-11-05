@@ -7,7 +7,9 @@ INTERFACE_DECLARE(Shape,
     size_t (*GetArea)(void *self);
 )
 
-COMPONENT_DECLARE(Rectangle, COMPONENT_IMPLEMENTS_DECLARE(Rectangle, Shape), , 
+COMPONENT_DECLARE(Rectangle, 
+    COMPONENT_IMPLEMENTS_DECLARE(Rectangle, Shape), 
+    COMPONENT_USES_DECLARE(Rectangle, Shape), 
     size_t X;
     size_t Y;
 )

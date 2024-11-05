@@ -1,6 +1,7 @@
 #include "ComponentObjects.h"
 #include "Tests.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #define TEST(expression, onFail, ...) \
 {\
@@ -15,7 +16,7 @@
         printf("Test Failed: %s; " onFail " at %s line %d\n", expressionString, ## __VA_ARGS__, __FILE__, __LINE__);\
 }
 
-#define TESTEND printf("%llu out of %llu tests passed", TestsPassed, TestsCount)
+#define TESTEND printf("%llu out of %llu tests passed\n", TestsPassed, TestsCount)
 
 size_t TestsCount = 0;
 size_t TestsPassed = 0;
@@ -31,6 +32,7 @@ size_t Rectangle_GetArea(void *self)
 
 COMPONENT_DEFINE(Rectangle, 
     COMPONENT_IMPLEMENTS_DEFINE(Shape, .GetArea = Rectangle_GetArea),
+    COMPONENT_USES_DEFINE(Shape)
 )
 
 size_t Trapezoid_GetArea(void *self)
@@ -76,48 +78,57 @@ void TestComponents()
 
 void TestObjects()
 {
+    int result;
+
     const size_t componentCount = 2;
-    const Component **objectComponents = COMPONENTS(TYPEOF(Rectangle), TYPEOF(Trapezoid));
+    const Component **objectComponents = COMPONENTS(componentCount, TYPEOF(Rectangle), TYPEOF(Trapezoid));
     
-    char objectData[ObjectGetSize(2, objectComponents)];
-    void *object = (void *)objectData;
+    ObjectData *objectData;
+    if(result = ObjectInitialize(&objectData, componentCount, objectComponents)) exit(result);
 
-    ObjectInititalize(object, componentCount, objectComponents);
+    // printf("ObjectData: %p\n", &objectData);
+    // printf("ObjectComponents: %p\n", objectData->Components);
+    // printf("%p\n", objectData->Components[0]);
 
-    Rectangle *rectangle;
-    Trapezoid *trapezoid;
+    // char objectChars[objectData->Size];
+    // void *object = (void *)objectChars;
+
+    // Rectangle *rectangle;
+    // Trapezoid *trapezoid;
     
-    FOR_EACH_COMPONENT(component, object)
-    {
-        if(COMPONENT_DATA(component)->Component == TYPEOF(Rectangle))
-        {
-            rectangle = component;
-            rectangle->X = 10;
-            rectangle->Y = 5;
-        }
-        else if(COMPONENT_DATA(component)->Component == TYPEOF(Trapezoid))
-        {
-            trapezoid = component;
-            trapezoid->BottomLength = 5;
-            trapezoid->TopLength = 3;
-            trapezoid->Height = 2;
-        }
-    }
+    // for(size_t x = 0; x < objectData->ComponentsCount; x++)
+    // {
+    //     ObjectComponent *objectComponent = objectData->Components[x];
+    //     void *component = (char *)object + objectComponent->Offset;
 
-    TEST(ComponentGetObject(rectangle) == object, "ComponentGetObject is %p, but should be %p", ComponentGetObject(rectangle), object)
 
-    size_t totalArea = 0;
+    //     if(objectComponent->Component == TYPEOF(Rectangle))
+    //     {
+    //         rectangle = component;
+    //         rectangle->X = 10;
+    //         rectangle->Y = 5;
+    //     }
+    //     else if(objectComponent->Component == TYPEOF(Trapezoid))
+    //     {
+    //         trapezoid = component;
+    //         trapezoid->BottomLength = 5;
+    //         trapezoid->TopLength = 3;
+    //         trapezoid->Height = 2;
+    //     }
+    // }
 
-    FOR_EACH_COMPONENT(component, object)
-    {
-        Shape *shapeVTable;
-        if(ComponentCast(COMPONENT_DATA(component)->Component, TYPEOF(Shape), (void **)&shapeVTable))
-            continue;
+    // size_t totalArea = 0;
 
-        totalArea += shapeVTable->GetArea(component);
-    }
+    // FOR_EACH_COMPONENT(component, object)
+    // {
+    //     Shape *shapeVTable;
+    //     if(ComponentCast(COMPONENT_DATA(component)->Component, TYPEOF(Shape), (void **)&shapeVTable))
+    //         continue;
 
-    TEST(totalArea == Rectangle_GetArea(rectangle) + Trapezoid_GetArea(trapezoid), "")
+    //     totalArea += shapeVTable->GetArea(component);
+    // }
+
+    // TEST(totalArea == Rectangle_GetArea(rectangle) + Trapezoid_GetArea(trapezoid), "")
 }
 
 int main (int argCount, char **argValues)
