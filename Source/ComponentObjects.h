@@ -68,29 +68,39 @@ struct ObjectComponent
 {
     Component *Component;
     size_t Offset;
-    ObjectComponentInterface *Uses[];
+    ObjectComponentUse Uses[];
+};
+
+typedef struct ObjectComponentUse ObjectComponentUse;
+struct ObjectComponentUse
+{
+    size_t ImplementsCount;
+    ObjectComponentInterface *ImplementingComponents;
 };
 
 typedef struct ObjectComponentInterface ObjectComponentInterface;
 struct ObjectComponentInterface
 {
     ObjectComponent *Component;
-    void *InterfaceVTable;
+    void *VTable;
 };
 
 typedef struct ObjectInterface ObjectInterface;
 struct ObjectInterface
 {
     Interface *Interface;
-    ObjectComponentInterface ImplementingComponents[];  
+    size_t ImplementingComponentsCount;
+    ObjectComponentInterface *ImplementingComponents;  
 };
 
 typedef struct ObjectData ObjectData;
 struct ObjectData
 {
     size_t TotalSize;
-    ObjectComponent *Components;
-    ObjectInterface **Interfaces;
+    size_t ComponentsCount;
+    ObjectComponent **Components;
+    size_t InterfacesCount;
+    ObjectInterface *Interfaces;
 };
 
 typedef struct Object Object;
