@@ -3,17 +3,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define TEST(expression, onFail, ...) \
+#define TEST(a, comparer, b, pattern, ...) \
 {\
-    const char *expressionString = #expression; \
+    const char *expressionString = #a " " #comparer " " #b; \
     TestsCount++; \
-    if(expression) \
+    if((a) comparer (b)) \
     {\
         printf("Test Passed: %s\n", expressionString); \
         TestsPassed ++;\
-    } \
+    }\
     else\
-        printf("Test Failed: %s; " onFail " at %s line %d\n", expressionString, ## __VA_ARGS__, __FILE__, __LINE__);\
+    {\
+        printf("Test Failed: %s; Values are " pattern "; at %s line %d\n", expressionString, a, b, __FILE__, __LINE__);\
+        __VA_ARGS__\
+    }\
 }
 
 #define TESTEND printf("%llu out of %llu tests passed\n", TestsPassed, TestsCount)
@@ -70,9 +73,9 @@ void TestComponents()
         size_t area = shapes[x].VTable->GetArea(shape);
 
         if(x == 0)
-            TEST(area == rectangle.X * rectangle.Y, "")
+            TEST(area, ==, rectangle.X * rectangle.Y, "%llu, %llu")
         else if(x == 1)
-            TEST(area == ((trapezoid.BottomLength + trapezoid.TopLength) * trapezoid.Height) / 2, "")
+            TEST(area, ==, ((trapezoid.BottomLength + trapezoid.TopLength) * trapezoid.Height) / 2, "%llu, %llu")
     }
 }
 
@@ -86,49 +89,64 @@ void TestObjects()
     ObjectData *objectData;
     if(result = ObjectInitialize(&objectData, componentCount, objectComponents)) exit(result);
 
-    // printf("ObjectData: %p\n", &objectData);
-    // printf("ObjectComponents: %p\n", objectData->Components);
-    // printf("%p\n", objectData->Components[0]);
+    char objectChars[objectData->Size];
+    void *object = (void *)objectChars;
 
-    // char objectChars[objectData->Size];
-    // void *object = (void *)objectChars;
+    Rectangle *rectangle;
+    ObjectComponent *rectangleObjectData;
 
-    // Rectangle *rectangle;
-    // Trapezoid *trapezoid;
+    Trapezoid *trapezoid;
+    ObjectComponent *trapezoidObjectData;
     
-    // for(size_t x = 0; x < objectData->ComponentsCount; x++)
-    // {
-    //     ObjectComponent *objectComponent = objectData->Components[x];
-    //     void *component = (char *)object + objectComponent->Offset;
+    for(size_t x = 0; x < objectData->ComponentsCount; x++)
+    {
+        ObjectComponent *objectComponent = objectData->Components[x];
+        void *component = (char *)object + objectComponent->Offset;
+
+        if(objectComponent->Component == TYPEOF(Rectangle))
+        {
+            rectangleObjectData = objectComponent;
+            rectangle = component;
+            rectangle->X = 10;
+            rectangle->Y = 5;
+        }
+        else if(objectComponent->Component == TYPEOF(Trapezoid))
+        {
+            trapezoidObjectData = objectComponent;
+            trapezoid = component;
+            trapezoid->BottomLength = 5;
+            trapezoid->TopLength = 3;
+            trapezoid->Height = 2;
+        }
+    }
+
+    TEST(rectangleObjectData->Component, ==, TYPEOF(Rectangle), "%p, %p")
+    TEST(rectangleObjectData->Offset, ==, 0, "%llu, %llu")
+    TEST(rectangleObjectData->Uses[0].ImplementsCount, ==, 2, "%llu, %llu")
+    TEST(rectangleObjectData->Uses[0].ImplementingComponents->Component->Component, ==, TYPEOF(Rectangle), "%p, %p")
 
 
-    //     if(objectComponent->Component == TYPEOF(Rectangle))
-    //     {
-    //         rectangle = component;
-    //         rectangle->X = 10;
-    //         rectangle->Y = 5;
-    //     }
-    //     else if(objectComponent->Component == TYPEOF(Trapezoid))
-    //     {
-    //         trapezoid = component;
-    //         trapezoid->BottomLength = 5;
-    //         trapezoid->TopLength = 3;
-    //         trapezoid->Height = 2;
-    //     }
-    // }
+    ObjectInterface *objectShapeInterface = ObjectGetInterface(objectData, TYPEOF(Shape));
+    TEST(objectShapeInterface, !=, NULL, "%p, %p", return;)
 
-    // size_t totalArea = 0;
+    size_t totalArea = 0;
 
-    // FOR_EACH_COMPONENT(component, object)
-    // {
-    //     Shape *shapeVTable;
-    //     if(ComponentCast(COMPONENT_DATA(component)->Component, TYPEOF(Shape), (void **)&shapeVTable))
-    //         continue;
+    for(size_t x = 0; x < objectShapeInterface->ImplementingComponentsCount; x++)
+    {
+        ObjectComponentInterface *objectComponent = objectShapeInterface->ImplementingComponents + x;
+        Shape *vTable = objectComponent->VTable;
 
-    //     totalArea += shapeVTable->GetArea(component);
-    // }
+        if(objectComponent->Component->Component == TYPEOF(Rectangle))
+            TEST(vTable->GetArea, ==, Rectangle_GetArea, "%p, %p", continue;)
+        else if(objectComponent->Component->Component == TYPEOF(Trapezoid))
+            TEST(vTable->GetArea, ==, Trapezoid_GetArea, "%p, %p", continue;)
 
-    // TEST(totalArea == Rectangle_GetArea(rectangle) + Trapezoid_GetArea(trapezoid), "")
+        totalArea += vTable->GetArea((char *)object + objectComponent->Component->Offset);
+    }
+
+    TEST(totalArea, ==, Rectangle_GetArea(rectangle) + Trapezoid_GetArea(trapezoid), "%llu, %llu")
+
+    free(objectData);
 }
 
 int main (int argCount, char **argValues)
