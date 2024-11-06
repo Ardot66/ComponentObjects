@@ -15,15 +15,8 @@ int ComponentCast(const Component *component, const Interface *interface, void *
     return 1;
 }
 
-#include <stdio.h>
-
 int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, const Component **components)
 {
-
-    printf("Dest %p\n", objectDataDest);
-
-    int result;
-
     ObjectData objectData;
     objectData.Size = 0;
     objectData.ComponentsCount = componentCount;
@@ -79,6 +72,8 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
             objectInterfaces[objectData.InterfacesCount] = objectInterface;
             objectData.InterfacesCount++;
 
+            objectData.DataSize += sizeof(*objectData.Interfaces);
+
             for(size_t z = 0; z < componentCount; z++)
             {
                 const Component *interfaceCheckComponent = components[z];
@@ -87,7 +82,6 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
                     if(*(interfaceCheckComponent->Implements[w]) == interface)
                         objectData.DataSize += sizeof(ObjectComponentInterface);
             }
-
         }
     }
 
@@ -106,8 +100,6 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
     objectData.Components = (ObjectComponent **)objectDataStack;
     objectDataStack += sizeof(*objectData.Components) * componentCount;
 
-    printf("Components: %p\n", objectData.Components);
-
     //Past this point is just setting up connections between different metadata objects
 
     for(size_t x = 0; x < componentCount; x++)
@@ -121,35 +113,42 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
         ObjectComponent *stackObjectComponent = (ObjectComponent *)objectDataStack;
         objectDataStack += sizeof(*stackObjectComponent) + sizeof(*stackObjectComponent->Uses) * objectComponent.Component->UsesCount;
 
-        printf("StackObjectComponent %p\n", stackObjectComponent);
-
         *stackObjectComponent = objectComponent;
         objectData.Components[x] = stackObjectComponent;
     }
 
     objectData.Interfaces = (ObjectInterface *)objectDataStack;
-    objectDataStack += sizeof(*objectData.Interfaces) * objectData.InterfacesCount;
 
     for(size_t x = 0; x < objectData.InterfacesCount; x++)
     {
         ObjectInterface objectInterface = objectInterfaces[x];
+
+        ObjectInterface *stackObjectInterface = (ObjectInterface *)objectDataStack;
+        objectDataStack += sizeof(*stackObjectInterface);
+
+        *stackObjectInterface = objectInterface;
+    }
+
+    for(size_t x = 0; x < objectData.InterfacesCount; x++)
+    {
+        ObjectInterface *objectInterface = objectData.Interfaces + x;
+        objectInterface->ImplementingComponentsCount = 0;
+        objectInterface->ImplementingComponents = (ObjectComponentInterface *)objectDataStack;
 
         for(size_t y = 0; y < componentCount; y++)
         {
             ObjectComponentInterface objectComponentInterface;
             objectComponentInterface.Component = objectData.Components[y];
 
-            if(ComponentCast(objectComponentInterface.Component->Component, objectInterface.Interface, &objectComponentInterface.VTable))
+            if(ComponentCast(objectComponentInterface.Component->Component, objectInterface->Interface, &objectComponentInterface.VTable))
                 continue;
+
+            objectInterface->ImplementingComponentsCount += 1;
 
             ObjectComponentInterface *stackObjectComponentInterface = (ObjectComponentInterface *)objectDataStack;
             objectDataStack += sizeof(*stackObjectComponentInterface);
+            *stackObjectComponentInterface = objectComponentInterface;
         }
-
-        ObjectInterface *stackObjectInterface = (ObjectInterface *)objectDataStack;
-        objectDataStack += sizeof(*stackObjectInterface);
-
-        *stackObjectInterface = objectInterface;
     }
 
     free(objectInterfaces);
@@ -167,7 +166,10 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
 
             for(size_t z = 0; z < objectData.InterfacesCount; z++)
                 if(objectData.Interfaces[z].Interface == useInterface)
+                {
                     foundInterface = objectData.Interfaces + z;
+                    break;
+                }
 
             if(foundInterface != NULL)
             {
@@ -184,12 +186,21 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
         }
     }
     
-        printf("Components: %p\n", objectData.Components);
-    printf("Dest %p\n", objectDataDest);
-
-
     *stackObjectData = objectData;
     *objectDataDest = stackObjectData;
 
     return 0;
+}
+
+ObjectInterface *ObjectGetInterface(const ObjectData *objectData, const Interface *interface)
+{
+    for(size_t x = 0; x < objectData->InterfacesCount; x++)
+    {
+        ObjectInterface *objectInterface = objectData->Interfaces + x;
+
+        if(objectInterface->Interface == interface)
+            return objectInterface;
+    }
+
+    return NULL;
 }

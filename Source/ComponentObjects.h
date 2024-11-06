@@ -107,5 +107,6 @@ struct ObjectData
 
 int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, const Component **components);
 int ComponentCast(const Component *component, const Interface *interface, void **interfaceVTableDest);
+ObjectInterface *ObjectGetInterface(const ObjectData *objectData, const Interface *interface);
 
 #endif
