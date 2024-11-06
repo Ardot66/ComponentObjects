@@ -106,6 +106,7 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
     {
         ObjectComponent objectComponent;
         objectComponent.Component = components[x];
+        objectComponent.ObjectData = stackObjectData;
         objectComponent.Offset = objectData.Size;
 
         objectData.Size += objectComponent.Component->Size;
@@ -200,6 +201,19 @@ ObjectInterface *ObjectGetInterface(const ObjectData *objectData, const Interfac
 
         if(objectInterface->Interface == interface)
             return objectInterface;
+    }
+
+    return NULL;
+}
+
+ObjectComponent *ObjectGetComponent(const ObjectData *objectData, const Component *component)
+{
+    for(size_t x = 0; x < objectData->ComponentsCount; x++)
+    {
+        ObjectComponent *objectComponent = objectData->Components[x];
+
+        if(objectComponent->Component == component)
+            return objectComponent;
     }
 
     return NULL;

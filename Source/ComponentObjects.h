@@ -39,13 +39,12 @@ Component TYPE_VAR(name) = \
     .Uses = (const Interface*[COMPONENT_USES(name, END) + 1]){uses NULL}\
 };\
 
+#define POINTER_OFFSET(pointer, offset) ((void *)((char *)(pointer) + (offset)))
 #define COMPONENT_GET_INTERFACE(component, interface) ((const interface *)TYPE_VAR(component).Implements[COMPONENT_INTERFACE(component, interface)])
+#define COMPONENT_GET_USE(componentData, component, use) (componentData->Uses + COMPONENT_USES(component, use))
 #define TYPEOF(name) (&TYPE_VAR(name))
 
-#define FOR_EACH_COMPONENT(componentVariableName, object) for(void *componentVariableName = (char *)object + sizeof(ComponentData); COMPONENT_DATA(componentVariableName)->Component != NULL; componentVariableName = (char *)componentVariableName + COMPONENT_DATA(componentVariableName)->Component->Size + sizeof(ComponentData))
-
-#define COMPONENTS(count, ...) ((const Component*[]){__VA_ARGS__})
-#define COMPONENT_DATA(component) ((ComponentData *)((char *)component - sizeof(ComponentData)))
+#define COMPONENTS(...) ((const Component*[]){__VA_ARGS__})
 
 typedef struct Interface Interface;
 struct Interface
@@ -78,6 +77,7 @@ struct ObjectComponentUse
 struct ObjectComponent
 {
     const Component *Component;
+    const ObjectData *ObjectData;
     size_t Offset;
     ObjectComponentUse Uses[];
 };
@@ -108,5 +108,6 @@ struct ObjectData
 int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, const Component **components);
 int ComponentCast(const Component *component, const Interface *interface, void **interfaceVTableDest);
 ObjectInterface *ObjectGetInterface(const ObjectData *objectData, const Interface *interface);
+ObjectComponent *ObjectGetComponent(const ObjectData *objectData, const Component *component);
 
 #endif
