@@ -26,27 +26,49 @@ size_t TestsPassed = 0;
 
 INTERFACE_DEFINE(Shape)
 
-size_t Rectangle_GetArea(void *self)
+size_t Rectangle_GetArea(void *object, const ObjectComponent *componentData)
 {
-    Rectangle *rectangle = self;
-
+    Rectangle *rectangle = POINTER_OFFSET(object, componentData->Offset);
     return rectangle->X * rectangle->Y;
 }
 
 COMPONENT_DEFINE(Rectangle, 
     COMPONENT_IMPLEMENTS_DEFINE(Shape, .GetArea = Rectangle_GetArea),
-    COMPONENT_USES_DEFINE(Shape)
 )
 
-size_t Trapezoid_GetArea(void *self)
+size_t Trapezoid_GetArea(void *object, const ObjectComponent *componentData)
 {
-    Trapezoid *trapezoid = self;
-
+    Trapezoid *trapezoid = POINTER_OFFSET(object, componentData->Offset);
     return ((trapezoid->BottomLength + trapezoid->TopLength) * trapezoid->Height) / 2;
 }
 
 COMPONENT_DEFINE(Trapezoid,
     COMPONENT_IMPLEMENTS_DEFINE(Shape, .GetArea = Trapezoid_GetArea),
+)
+
+size_t MultiShape_GetArea(void *object, const ObjectComponent *componentData)
+{
+    const ObjectComponentUse *shapeUses = COMPONENT_GET_USE(componentData, MultiShape, Shape);
+    size_t area = 0;
+
+    for(size_t x = 0; x < shapeUses->ImplementsCount; x++)
+    {
+        ObjectComponentInterface *implementingComponent = shapeUses->ImplementingComponents + x;
+        Shape *shapeVTable = implementingComponent->VTable;
+
+        if(implementingComponent->Component->Component == TYPEOF(Rectangle))
+            TEST(shapeVTable->GetArea, ==, Rectangle_GetArea, "%p, %p", continue;)
+        else if(implementingComponent->Component->Component == TYPEOF(Trapezoid))
+            TEST(shapeVTable->GetArea, ==, Trapezoid_GetArea, "%p, %p", continue;)
+
+        area += shapeVTable->GetArea(object, implementingComponent->Component);
+    }
+
+    return area;
+}
+
+COMPONENT_DEFINE(MultiShape, ,
+    COMPONENT_USES_DEFINE(Shape)
 )
 
 void TestComponents()
@@ -69,13 +91,10 @@ void TestComponents()
 
     for(size_t x = 0; x < shapesLength; x++)
     {
-        void *shape = shapes[x].Shape;
-        size_t area = shapes[x].VTable->GetArea(shape);
-
         if(x == 0)
-            TEST(area, ==, rectangle.X * rectangle.Y, "%llu, %llu")
+            TEST(shapes[x].VTable->GetArea, ==, Rectangle_GetArea, "%llu, %llu")
         else if(x == 1)
-            TEST(area, ==, ((trapezoid.BottomLength + trapezoid.TopLength) * trapezoid.Height) / 2, "%llu, %llu")
+            TEST(shapes[x].VTable->GetArea, ==, Trapezoid_GetArea, "%llu, %llu")
     }
 }
 
@@ -83,8 +102,8 @@ void TestObjects()
 {
     int result;
 
-    const size_t componentCount = 2;
-    const Component **objectComponents = COMPONENTS(componentCount, TYPEOF(Rectangle), TYPEOF(Trapezoid));
+    const size_t componentCount = 3;
+    const Component **objectComponents = COMPONENTS(TYPEOF(MultiShape), TYPEOF(Rectangle), TYPEOF(Trapezoid));
     
     ObjectData *objectData;
     if(result = ObjectInitialize(&objectData, componentCount, objectComponents)) exit(result);
@@ -122,30 +141,16 @@ void TestObjects()
 
     TEST(rectangleObjectData->Component, ==, TYPEOF(Rectangle), "%p, %p")
     TEST(rectangleObjectData->Offset, ==, 0, "%llu, %llu")
-    TEST(rectangleObjectData->Uses[0].ImplementsCount, ==, 2, "%llu, %llu")
-    TEST(rectangleObjectData->Uses[0].ImplementingComponents->Component->Component, ==, TYPEOF(Rectangle), "%p, %p")
 
+    ObjectComponent *multiShapeComponentData = ObjectGetComponent(objectData, TYPEOF(MultiShape));
+    TEST(multiShapeComponentData, !=, NULL, "%p, %p", return;)
 
-    ObjectInterface *objectShapeInterface = ObjectGetInterface(objectData, TYPEOF(Shape));
-    TEST(objectShapeInterface, !=, NULL, "%p, %p", return;)
+    TEST(multiShapeComponentData->Uses[0].ImplementsCount, ==, 2, "%llu, %llu")
+    TEST(multiShapeComponentData->Uses[0].ImplementingComponents->Component->Component, ==, TYPEOF(Rectangle), "%p, %p")
 
-    size_t totalArea = 0;
+    size_t totalArea = MultiShape_GetArea(object, multiShapeComponentData);
 
-    for(size_t x = 0; x < objectShapeInterface->ImplementingComponentsCount; x++)
-    {
-        ObjectComponentInterface *objectComponent = objectShapeInterface->ImplementingComponents + x;
-        Shape *vTable = objectComponent->VTable;
-
-        if(objectComponent->Component->Component == TYPEOF(Rectangle))
-            TEST(vTable->GetArea, ==, Rectangle_GetArea, "%p, %p", continue;)
-        else if(objectComponent->Component->Component == TYPEOF(Trapezoid))
-            TEST(vTable->GetArea, ==, Trapezoid_GetArea, "%p, %p", continue;)
-
-        totalArea += vTable->GetArea((char *)object + objectComponent->Component->Offset);
-    }
-
-    TEST(totalArea, ==, Rectangle_GetArea(rectangle) + Trapezoid_GetArea(trapezoid), "%llu, %llu")
-
+    TEST(totalArea, ==, Rectangle_GetArea(object, rectangleObjectData) + Trapezoid_GetArea(object, trapezoidObjectData), "%llu, %llu")
     free(objectData);
 }
 
