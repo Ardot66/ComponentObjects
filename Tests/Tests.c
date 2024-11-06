@@ -26,7 +26,7 @@ size_t TestsPassed = 0;
 
 INTERFACE_DEFINE(Shape)
 
-size_t Rectangle_GetArea(void *object, const ObjectComponent *componentData)
+size_t Rectangle_GetArea(void *object, const ObjectComponentData *componentData)
 {
     Rectangle *rectangle = POINTER_OFFSET(object, componentData->Offset);
     return rectangle->X * rectangle->Y;
@@ -36,7 +36,7 @@ COMPONENT_DEFINE(Rectangle,
     COMPONENT_IMPLEMENTS_DEFINE(Shape, .GetArea = Rectangle_GetArea),
 )
 
-size_t Trapezoid_GetArea(void *object, const ObjectComponent *componentData)
+size_t Trapezoid_GetArea(void *object, const ObjectComponentData *componentData)
 {
     Trapezoid *trapezoid = POINTER_OFFSET(object, componentData->Offset);
     return ((trapezoid->BottomLength + trapezoid->TopLength) * trapezoid->Height) / 2;
@@ -46,14 +46,14 @@ COMPONENT_DEFINE(Trapezoid,
     COMPONENT_IMPLEMENTS_DEFINE(Shape, .GetArea = Trapezoid_GetArea),
 )
 
-size_t MultiShape_GetArea(void *object, const ObjectComponent *componentData)
+size_t MultiShape_GetArea(void *object, const ObjectComponentData *componentData)
 {
-    const ObjectComponentUse *shapeUses = COMPONENT_GET_USE(componentData, MultiShape, Shape);
+    const ObjectComponentUseData *shapeUses = COMPONENT_GET_USE(componentData, MultiShape, Shape);
     size_t area = 0;
 
     for(size_t x = 0; x < shapeUses->ImplementsCount; x++)
     {
-        ObjectComponentInterface *implementingComponent = shapeUses->ImplementingComponents + x;
+        ObjectInterfaceInstanceData *implementingComponent = shapeUses->ImplementingComponents + x;
         Shape *shapeVTable = implementingComponent->VTable;
 
         if(implementingComponent->Component->Component == TYPEOF(Rectangle))
@@ -103,7 +103,7 @@ void TestObjects()
     int result;
 
     const size_t componentCount = 3;
-    const Component **objectComponents = COMPONENTS(TYPEOF(MultiShape), TYPEOF(Rectangle), TYPEOF(Trapezoid));
+    const ComponentData **objectComponents = COMPONENTS(TYPEOF(MultiShape), TYPEOF(Rectangle), TYPEOF(Trapezoid));
     
     ObjectData *objectData;
     if(result = ObjectInitialize(&objectData, componentCount, objectComponents)) exit(result);
@@ -112,14 +112,14 @@ void TestObjects()
     void *object = (void *)objectChars;
 
     Rectangle *rectangle;
-    ObjectComponent *rectangleObjectData;
+    ObjectComponentData *rectangleObjectData;
 
     Trapezoid *trapezoid;
-    ObjectComponent *trapezoidObjectData;
+    ObjectComponentData *trapezoidObjectData;
     
     for(size_t x = 0; x < objectData->ComponentsCount; x++)
     {
-        ObjectComponent *objectComponent = objectData->Components[x];
+        ObjectComponentData *objectComponent = objectData->Components[x];
         void *component = (char *)object + objectComponent->Offset;
 
         if(objectComponent->Component == TYPEOF(Rectangle))
@@ -142,7 +142,7 @@ void TestObjects()
     TEST(rectangleObjectData->Component, ==, TYPEOF(Rectangle), "%p, %p")
     TEST(rectangleObjectData->Offset, ==, 0, "%llu, %llu")
 
-    ObjectComponent *multiShapeComponentData = ObjectGetComponent(objectData, TYPEOF(MultiShape));
+    ObjectComponentData *multiShapeComponentData = ObjectGetComponent(objectData, TYPEOF(MultiShape));
     TEST(multiShapeComponentData, !=, NULL, "%p, %p", return;)
 
     TEST(multiShapeComponentData->Uses[0].ImplementsCount, ==, 2, "%llu, %llu")
