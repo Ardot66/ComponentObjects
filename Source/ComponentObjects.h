@@ -39,7 +39,7 @@ ComponentData COMPONENT_OBJECTS_TYPE_VAR(name) = \
     .Uses = (const InterfaceData*[COMPONENT_USES(name, END) + 1]){uses NULL}\
 };\
 
-#define POINTER_OFFSET(pointer, offset) ((void *)((char *)(pointer) + (offset)))
+#define POINTER_OFFSET(pointer, offset) ((void *)((char *)(pointer) + (uintptr_t)(offset)))
 #define COMPONENT_GET_INTERFACE(component, interface) ((const interface *)COMPONENT_OBJECTS_TYPE_VAR(component).Implements[COMPONENT_INTERFACE(component, interface)])
 #define COMPONENT_GET_USE(componentData, component, use) (componentData->Uses + COMPONENT_USES(component, use))
 #define TYPEOF(name) (&COMPONENT_OBJECTS_TYPE_VAR(name))
