@@ -150,6 +150,10 @@ void TestObjects()
     TEST(multiShapeComponentData->Uses[0].ImplementsCount, ==, 2, "%llu, %llu")
     TEST(multiShapeComponentData->Uses[0].ImplementingComponents->Component->Component, ==, TYPEOF(Rectangle), "%p, %p")
 
+    ObjectInterfaceData *shapeInterfaceData = ObjectGetInterface(objectData, TYPEOF(Shape));
+    TEST(shapeInterfaceData, !=, NULL, "%p, %p")
+    TEST(INTERFACE_GET_USE(shapeInterfaceData, Shape, Shape)->ImplementingComponents, ==, shapeInterfaceData->ImplementingComponents, "%p, %p")
+
     size_t totalArea = MultiShape_GetArea(object, multiShapeComponentData);
 
     TEST(totalArea, ==, Rectangle_GetArea(object, rectangleObjectData) + Trapezoid_GetArea(object, trapezoidObjectData), "%llu, %llu")

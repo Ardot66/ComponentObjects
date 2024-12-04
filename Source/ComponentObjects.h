@@ -17,7 +17,7 @@
 #define COMPONENT_IMPLEMENTS_DECLARE(name, interface) COMPONENT_INTERFACE(name, interface),
 #define COMPONENT_IMPLEMENTS_DEFINE(interface, ...) (const InterfaceData **)(&(const interface){.InterfaceData = &COMPONENT_OBJECTS_TYPE_VAR(interface), ## __VA_ARGS__}),
  
-#define INTERFACE_USES_DECLARE(interface, usesInterfaces) INTERFACE_USES(interface, usesInterface),
+#define INTERFACE_USES_DECLARE(interface, usesInterface) INTERFACE_USES(interface, usesInterface),
 #define INTERFACE_USES_DEFINE(usesInterface) TYPEOF(usesInterface),
 
 #define INTERFACE_DECLARE(name, uses, ...) \
@@ -48,6 +48,7 @@ ComponentData COMPONENT_OBJECTS_TYPE_VAR(name) = \
 #define POINTER_OFFSET(pointer, offset) ((void *)((char *)(pointer) + (uintptr_t)(offset)))
 #define COMPONENT_GET_INTERFACE(component, interface) ((const interface *)COMPONENT_OBJECTS_TYPE_VAR(component).Implements[COMPONENT_INTERFACE(component, interface)])
 #define COMPONENT_GET_USE(componentData, component, use) (componentData->Uses + COMPONENT_USES(component, use))
+#define INTERFACE_GET_USE(interfaceData, interface, use) (interfaceData->Uses + INTERFACE_USES(interface, use))
 #define TYPEOF(name) (&COMPONENT_OBJECTS_TYPE_VAR(name))
 
 #define COMPONENTS(...) ((const ComponentData*[]){__VA_ARGS__})

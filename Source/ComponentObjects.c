@@ -15,6 +15,37 @@ int ComponentCast(const ComponentData *component, const InterfaceData *interface
     return 1;
 }
 
+static void ObjectFindUses(const size_t interfacesCount, const ObjectInterfaceData *objectInterfaces, const size_t usesCount, const InterfaceData **usesInterfaces, ObjectInterfaceUseData *usesDest)
+{
+    for(size_t x = 0; x < usesCount; x++)
+    {
+        const InterfaceData *useInterfaceData = usesInterfaces[x];
+        ObjectInterfaceUseData objectComponentUseData;
+
+        const ObjectInterfaceData *foundObjectInterfaceData = NULL;
+
+        for(size_t y = 0; y < interfacesCount; y++)
+            if(objectInterfaces[y].Interface == useInterfaceData)
+            {
+                foundObjectInterfaceData = objectInterfaces + y;
+                break;
+            }
+
+        if(foundObjectInterfaceData != NULL)
+        {
+            objectComponentUseData.ImplementsCount = foundObjectInterfaceData->ImplementingComponentsCount;
+            objectComponentUseData.ImplementingComponents = foundObjectInterfaceData->ImplementingComponents;
+        }
+        else
+        {
+            objectComponentUseData.ImplementsCount = 0;
+            objectComponentUseData.ImplementingComponents = NULL;
+        }
+
+        usesDest[x] = objectComponentUseData;
+    }
+}
+
 int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, const ComponentData **components)
 {
     ObjectData objectData;
@@ -26,7 +57,7 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
     objectData.DataSize = sizeof(ObjectData) + sizeof(*objectData.Components) * componentCount;
     
     for(size_t x = 0; x < componentCount; x++)
-        objectData.DataSize += sizeof(**objectData.Components) + sizeof(ObjectComponentUseData) * components[x]->UsesCount;
+        objectData.DataSize += sizeof(**objectData.Components) + sizeof(ObjectInterfaceUseData) * components[x]->UsesCount;
 
     //Also finding all unique interfaces
     size_t objectInterfacesLength = 4;
@@ -72,7 +103,7 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
             objectInterfaces[objectData.InterfacesCount] = objectInterfaceData;
             objectData.InterfacesCount++;
 
-            objectData.DataSize += sizeof(*objectData.Interfaces);
+            objectData.DataSize += sizeof(*objectData.Interfaces) + sizeof(*objectData.Interfaces->Uses) * interfaceData->UsesCount;
 
             for(size_t z = 0; z < componentCount; z++)
             {
@@ -130,6 +161,8 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
         *stackObjectInterfaceData = objectInterfaceData;
     }
 
+    free(objectInterfaces);
+
     for(size_t x = 0; x < objectData.InterfacesCount; x++)
     {
         ObjectInterfaceData *objectInterfaceData = objectData.Interfaces + x;
@@ -140,6 +173,7 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
         {
             ObjectInterfaceInstanceData objectInterfaceInstanceData;
             objectInterfaceInstanceData.Component = objectData.Components[y];
+            objectInterfaceInstanceData.Interface = objectInterfaceData;
 
             if(ComponentCast(objectInterfaceInstanceData.Component->Component, objectInterfaceData->Interface, &objectInterfaceInstanceData.VTable))
                 continue;
@@ -152,39 +186,20 @@ int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, c
         }
     }
 
-    free(objectInterfaces);
+    for(size_t x = 0; x < objectData.InterfacesCount; x++)
+    {
+        ObjectInterfaceData *interface = objectData.Interfaces + x;
+        ObjectInterfaceUseData *interfaceUses = (ObjectInterfaceUseData *)objectDataStack;
+
+        ObjectFindUses(objectData.InterfacesCount, objectData.Interfaces, interface->Interface->UsesCount, interface->Interface->Uses, interfaceUses);
+        objectDataStack += sizeof(*interfaceUses) * interface->Interface->UsesCount;
+        interface->Uses = interfaceUses;
+    }
 
     for(size_t x = 0; x < componentCount; x++)
     {
         ObjectComponentData *objectComponentData = objectData.Components[x];
-
-        for(size_t y = 0; y < objectComponentData->Component->UsesCount; y++)
-        {
-            const InterfaceData *useInterfaceData = objectComponentData->Component->Uses[y];
-            ObjectComponentUseData objectComponentUseData;
-
-            ObjectInterfaceData *foundObjectInterfaceData = NULL;
-
-            for(size_t z = 0; z < objectData.InterfacesCount; z++)
-                if(objectData.Interfaces[z].Interface == useInterfaceData)
-                {
-                    foundObjectInterfaceData = objectData.Interfaces + z;
-                    break;
-                }
-
-            if(foundObjectInterfaceData != NULL)
-            {
-                objectComponentUseData.ImplementsCount = foundObjectInterfaceData->ImplementingComponentsCount;
-                objectComponentUseData.ImplementingComponents = foundObjectInterfaceData->ImplementingComponents;
-            }
-            else
-            {
-                objectComponentUseData.ImplementsCount = 0;
-                objectComponentUseData.ImplementingComponents = NULL;
-            }
-
-            objectComponentData->Uses[y] = objectComponentUseData;
-        }
+        ObjectFindUses(objectData.InterfacesCount, objectData.Interfaces, objectComponentData->Component->UsesCount, objectComponentData->Component->Uses, objectComponentData->Uses);
     }
     
     *stackObjectData = objectData;
