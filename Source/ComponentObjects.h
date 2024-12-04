@@ -5,23 +5,29 @@
 
 #define COMPONENT_OBJECTS_TYPE_VAR(name) T_ ## name
 #define COMPONENT_USES(component, dependentComponent) COMPONENT_USES_ ## component ## _ ## dependentComponent
-#define COMPONENT_USES_ENUM(component) ED_ ## component
+#define COMPONENT_USES_ENUM(component) EU_ ## component
 #define COMPONENT_INTERFACE(name, interface) COMPONENT_INTERFACE_ ## name ## _ ## interface
-#define COMPONENT_INTERFACES_ENUM(name) EI_ ## name
-
+#define COMPONENT_INTERFACES_ENUM(name) EI_ ## name 
+#define INTERFACE_USES(interface, usesInterface) COMPONENT_USES_ ## interface ## _ ## usesInterface
+#define INTERFACE_USES_ENUM(interface) IU_ ## interface
+ 
 #define COMPONENT_USES_DECLARE(component, usesComponent) COMPONENT_USES(component, usesComponent),
 #define COMPONENT_USES_DEFINE(dependentComponent) TYPEOF(dependentComponent),
 
 #define COMPONENT_IMPLEMENTS_DECLARE(name, interface) COMPONENT_INTERFACE(name, interface),
 #define COMPONENT_IMPLEMENTS_DEFINE(interface, ...) (const InterfaceData **)(&(const interface){.InterfaceData = &COMPONENT_OBJECTS_TYPE_VAR(interface), ## __VA_ARGS__}),
  
-#define INTERFACE_DECLARE(name, ...) \
+#define INTERFACE_USES_DECLARE(interface, usesInterfaces) INTERFACE_USES(interface, usesInterface),
+#define INTERFACE_USES_DEFINE(usesInterface) TYPEOF(usesInterface),
+
+#define INTERFACE_DECLARE(name, uses, ...) \
 extern InterfaceData COMPONENT_OBJECTS_TYPE_VAR(name);\
+enum INTERFACE_USES_ENUM(name) {uses INTERFACE_USES(name, END)};\
 typedef struct name name;\
 struct name {InterfaceData *InterfaceData; __VA_ARGS__};
 
-#define INTERFACE_DEFINE(name)\
-InterfaceData COMPONENT_OBJECTS_TYPE_VAR(name);
+#define INTERFACE_DEFINE(name, uses)\
+InterfaceData COMPONENT_OBJECTS_TYPE_VAR(name) = {.UsesCount = INTERFACE_USES(name, END), .Uses = (const InterfaceData *[INTERFACE_USES(name, END) + 1]){uses NULL}};
 
 #define COMPONENT_DECLARE(name, interfaces, uses, ...)\
 extern ComponentData COMPONENT_OBJECTS_TYPE_VAR(name);\
@@ -49,7 +55,8 @@ ComponentData COMPONENT_OBJECTS_TYPE_VAR(name) = \
 typedef struct InterfaceData InterfaceData;
 struct InterfaceData
 {
-    const size_t Filler;
+    const size_t UsesCount;
+    const InterfaceData **Uses;
 };
 
 typedef struct ComponentData ComponentData;
@@ -62,13 +69,13 @@ struct ComponentData
     const InterfaceData **Uses;
 };
 
-typedef struct ObjectComponentUseData ObjectComponentUseData;
+typedef struct ObjectInterfaceUseData ObjectInterfaceUseData;
 typedef struct ObjectComponentData ObjectComponentData;
 typedef struct ObjectInterfaceInstanceData ObjectInterfaceInstanceData;
 typedef struct ObjectInterfaceData ObjectInterfaceData;
 typedef struct ObjectData ObjectData;
 
-struct ObjectComponentUseData
+struct ObjectInterfaceUseData
 {
     size_t ImplementsCount;
     ObjectInterfaceInstanceData *ImplementingComponents;
@@ -79,11 +86,12 @@ struct ObjectComponentData
     const ComponentData *Component;
     const ObjectData *ObjectData;
     size_t Offset;
-    ObjectComponentUseData Uses[];
+    ObjectInterfaceUseData Uses[];
 };
 
 struct ObjectInterfaceInstanceData
 {
+    ObjectInterfaceData *Interface;
     ObjectComponentData *Component;
     void *VTable;
 };
@@ -93,6 +101,7 @@ struct ObjectInterfaceData
     const InterfaceData *Interface;
     size_t ImplementingComponentsCount;
     ObjectInterfaceInstanceData *ImplementingComponents;  
+    ObjectInterfaceUseData *Uses;
 };
 
 struct ObjectData

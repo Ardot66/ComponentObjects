@@ -4,6 +4,7 @@
 #include "ComponentObjects.h"
 
 INTERFACE_DECLARE(Shape, 
+    INTERFACE_USES_DECLARE(Shape, Shape),
     size_t (*GetArea)(void *object, const ObjectComponentData *componentData);
 )
 

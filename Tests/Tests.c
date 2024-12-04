@@ -24,7 +24,9 @@
 size_t TestsCount = 0;
 size_t TestsPassed = 0;
 
-INTERFACE_DEFINE(Shape)
+INTERFACE_DEFINE(Shape,
+    INTERFACE_USES_DEFINE(Shape)
+)
 
 size_t Rectangle_GetArea(void *object, const ObjectComponentData *componentData)
 {
@@ -48,7 +50,7 @@ COMPONENT_DEFINE(Trapezoid,
 
 size_t MultiShape_GetArea(void *object, const ObjectComponentData *componentData)
 {
-    const ObjectComponentUseData *shapeUses = COMPONENT_GET_USE(componentData, MultiShape, Shape);
+    const ObjectInterfaceUseData *shapeUses = COMPONENT_GET_USE(componentData, MultiShape, Shape);
     size_t area = 0;
 
     for(size_t x = 0; x < shapeUses->ImplementsCount; x++)
