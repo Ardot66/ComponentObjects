@@ -3,73 +3,121 @@
 
 #include <stddef.h>
 
-#define COMPONENT_VTABLE(name) V_ ## name
-#define TYPE_VAR(name) T_ ## name
+#define COMPONENT_OBJECTS_TYPE_VAR(name) T_ ## name
+#define COMPONENT_USES(component, dependentComponent) COMPONENT_USES_ ## component ## _ ## dependentComponent
+#define COMPONENT_USES_ENUM(component) EU_ ## component
+#define COMPONENT_INTERFACE(name, interface) COMPONENT_INTERFACE_ ## name ## _ ## interface
+#define COMPONENT_INTERFACES_ENUM(name) EI_ ## name 
+#define INTERFACE_USES(interface, usesInterface) COMPONENT_USES_ ## interface ## _ ## usesInterface
+#define INTERFACE_USES_ENUM(interface) IU_ ## interface
+ 
+#define COMPONENT_USES_DECLARE(component, usesComponent) COMPONENT_USES(component, usesComponent),
+#define COMPONENT_USES_DEFINE(dependentComponent) TYPEOF(dependentComponent),
 
-#define INTERFACE(interface) interface *interface;
-#define IMPLEMENT(interface, ...) . interface = &(interface){.Interface = &TYPE_VAR(interface), ## __VA_ARGS__}
+#define COMPONENT_IMPLEMENTS_DECLARE(name, interface) COMPONENT_INTERFACE(name, interface),
+#define COMPONENT_IMPLEMENTS_DEFINE(interface, ...) (const InterfaceData **)(&(const interface){.InterfaceData = &COMPONENT_OBJECTS_TYPE_VAR(interface), ## __VA_ARGS__}),
+ 
+#define INTERFACE_USES_DECLARE(interface, usesInterface) INTERFACE_USES(interface, usesInterface),
+#define INTERFACE_USES_DEFINE(usesInterface) TYPEOF(usesInterface),
 
-#define INTERFACE_DECLARE(name, ...) \
-extern Interface TYPE_VAR(name);\
+#define INTERFACE_DECLARE(name, uses, ...) \
+extern InterfaceData COMPONENT_OBJECTS_TYPE_VAR(name);\
+enum INTERFACE_USES_ENUM(name) {uses INTERFACE_USES(name, END)};\
 typedef struct name name;\
-struct name {Interface * Interface; __VA_ARGS__};
+struct name {InterfaceData *InterfaceData; __VA_ARGS__};
 
-#define INTERFACE_DEFINE(name)\
-Interface TYPE_VAR(name);
+#define INTERFACE_DEFINE(name, uses)\
+InterfaceData COMPONENT_OBJECTS_TYPE_VAR(name) = {.UsesCount = INTERFACE_USES(name, END), .Uses = (const InterfaceData *[INTERFACE_USES(name, END) + 1]){uses NULL}};
 
-#define COMPONENT_DECLARE(name, interfaces, ...)\
-extern Component TYPE_VAR(name);\
-typedef struct COMPONENT_VTABLE(name) COMPONENT_VTABLE(name);\
-struct COMPONENT_VTABLE(name) {interfaces}; \
+#define COMPONENT_DECLARE(name, interfaces, uses, ...)\
+extern ComponentData COMPONENT_OBJECTS_TYPE_VAR(name);\
+enum COMPONENT_INTERFACES_ENUM(name) {interfaces COMPONENT_INTERFACE(name, END)};\
+enum COMPONENT_USES_ENUM(name) {uses COMPONENT_USES(name, END)};\
 typedef struct name name;\
 struct name {__VA_ARGS__};
 
-#define COMPONENT_DEFINE(name, ...)\
-Component TYPE_VAR(name) = {.Size = sizeof(name), .ImplementsCount = sizeof(COMPONENT_VTABLE(name)) / sizeof(void *), .VTable = &(COMPONENT_VTABLE(name)){__VA_ARGS__}};
+#define COMPONENT_DEFINE(name, interfaces, uses)\
+ComponentData COMPONENT_OBJECTS_TYPE_VAR(name) = \
+{\
+    .Size = sizeof(name), .ImplementsCount = COMPONENT_INTERFACE(name, END), \
+    .Implements = (const InterfaceData**[COMPONENT_INTERFACE(name, END) + 1]){interfaces NULL}, \
+    .UsesCount = COMPONENT_USES(name, END), \
+    .Uses = (const InterfaceData*[COMPONENT_USES(name, END) + 1]){uses NULL}\
+};\
 
-#define VTABLE(name) ((COMPONENT_VTABLE(name) *)TYPE_VAR(name).VTable)
-#define TYPEOF(name) (&TYPE_VAR(name))
+#define POINTER_OFFSET(pointer, offset) ((void *)((char *)(pointer) + (uintptr_t)(offset)))
+#define COMPONENT_GET_INTERFACE(component, interface) ((const interface *)COMPONENT_OBJECTS_TYPE_VAR(component).Implements[COMPONENT_INTERFACE(component, interface)])
+#define COMPONENT_GET_USE(componentData, component, use) (componentData->Uses + COMPONENT_USES(component, use))
+#define INTERFACE_GET_USE(interfaceData, interface, use) (interfaceData->Uses + INTERFACE_USES(interface, use))
+#define TYPEOF(name) (&COMPONENT_OBJECTS_TYPE_VAR(name))
 
-#define FOR_EACH_COMPONENT(componentVariableName, object) for(void *componentVariableName = (char *)object + sizeof(ComponentData); COMPONENT_DATA(componentVariableName)->Component != NULL; componentVariableName = (char *)componentVariableName + COMPONENT_DATA(componentVariableName)->Component->Size + sizeof(ComponentData))
+#define COMPONENTS(...) ((const ComponentData*[]){__VA_ARGS__})
 
-#define COMPONENTS(...) ((const Component*[]){__VA_ARGS__})
-#define COMPONENT_DATA(component) ((ComponentData *)((char *)component - sizeof(ComponentData)))
-
-typedef struct Interface Interface;
-struct Interface
+typedef struct InterfaceData InterfaceData;
+struct InterfaceData
 {
-    const size_t Filler;
-};
-
-typedef struct Component Component;
-struct Component
-{
-    const size_t Size;
-    const size_t ImplementsCount;
-
-    union
-    {
-        const Interface ***Implements;
-        const void *VTable;
-    };
+    const size_t UsesCount;
+    const InterfaceData **Uses;
 };
 
 typedef struct ComponentData ComponentData;
 struct ComponentData
 {
-    const Component *Component;
+    const size_t Size;
+    const size_t ImplementsCount;
+    const InterfaceData ***Implements;
+    const size_t UsesCount;
+    const InterfaceData **Uses;
 };
 
-typedef struct ObjectEnd ObjectEnd;
-struct ObjectEnd
+typedef struct ObjectInterfaceUseData ObjectInterfaceUseData;
+typedef struct ObjectComponentData ObjectComponentData;
+typedef struct ObjectInterfaceInstanceData ObjectInterfaceInstanceData;
+typedef struct ObjectInterfaceData ObjectInterfaceData;
+typedef struct ObjectData ObjectData;
+
+struct ObjectInterfaceUseData
 {
-    void *NullPointer;
-    void *Object;
+    size_t ImplementsCount;
+    ObjectInterfaceInstanceData *ImplementingComponents;
 };
 
-size_t ObjectGetSize(const size_t componentCount, const Component **components);
-void ObjectInititalize(void *object, const size_t componentCount, const Component **components);
-int ComponentCast(const Component *component, const Interface *interface, void **interfaceVTableDest);
-void *ComponentGetObject(const void *component);
+struct ObjectComponentData
+{
+    const ComponentData *Component;
+    const ObjectData *ObjectData;
+    size_t Offset;
+    ObjectInterfaceUseData Uses[];
+};
+
+struct ObjectInterfaceInstanceData
+{
+    ObjectInterfaceData *Interface;
+    ObjectComponentData *Component;
+    void *VTable;
+};
+
+struct ObjectInterfaceData
+{
+    const InterfaceData *Interface;
+    size_t ImplementingComponentsCount;
+    ObjectInterfaceInstanceData *ImplementingComponents;  
+    ObjectInterfaceUseData *Uses;
+};
+
+struct ObjectData
+{
+    size_t Size;
+    size_t DataSize;
+    size_t ComponentsCount;
+    ObjectComponentData **Components;
+    size_t InterfacesCount;
+    ObjectInterfaceData *Interfaces;
+};
+
+int ObjectInitialize(ObjectData **objectDataDest, const size_t componentCount, const ComponentData **components);
+int ComponentCast(const ComponentData *componentData, const InterfaceData *interfaceData, void **interfaceDest);
+ObjectInterfaceData *ObjectGetInterface(const ObjectData *objectData, const InterfaceData *interfaceData);
+ObjectComponentData *ObjectGetComponent(const ObjectData *objectData, const ComponentData *componentData);
 
 #endif
