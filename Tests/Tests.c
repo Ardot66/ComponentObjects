@@ -25,7 +25,7 @@ size_t TestsCount = 0;
 size_t TestsPassed = 0;
 
 INTERFACE_DEFINE(Shape,
-    INTERFACE_USES_DEFINE(Shape)
+    USES_DEFINE(Shape)
 )
 
 size_t Rectangle_GetArea(void *object, const ObjectComponentData *componentData)
@@ -36,6 +36,7 @@ size_t Rectangle_GetArea(void *object, const ObjectComponentData *componentData)
 
 COMPONENT_DEFINE(Rectangle, 
     COMPONENT_IMPLEMENTS_DEFINE(Shape, .GetArea = Rectangle_GetArea),
+    USES_DEFINE(Shape)
 )
 
 size_t Trapezoid_GetArea(void *object, const ObjectComponentData *componentData)
@@ -46,11 +47,12 @@ size_t Trapezoid_GetArea(void *object, const ObjectComponentData *componentData)
 
 COMPONENT_DEFINE(Trapezoid,
     COMPONENT_IMPLEMENTS_DEFINE(Shape, .GetArea = Trapezoid_GetArea),
+    USES_DEFINE(Rectangle)
 )
 
 size_t MultiShape_GetArea(void *object, const ObjectComponentData *componentData)
 {
-    const ObjectInterfaceUseData *shapeUses = COMPONENT_GET_USE(componentData, MultiShape, Shape);
+    const ObjectUseData *shapeUses = COMPONENT_GET_USE(componentData, MultiShape, Shape);
     size_t area = 0;
 
     for(size_t x = 0; x < shapeUses->ImplementsCount; x++)
@@ -70,7 +72,7 @@ size_t MultiShape_GetArea(void *object, const ObjectComponentData *componentData
 }
 
 COMPONENT_DEFINE(MultiShape, ,
-    COMPONENT_USES_DEFINE(Shape)
+    USES_DEFINE(Shape)
 )
 
 void TestComponents()
@@ -141,6 +143,7 @@ void TestObjects()
         }
     }
 
+    TEST(COMPONENT_GET_USE(trapezoidObjectData, Trapezoid, Rectangle)->Component, ==, rectangleObjectData, "%p, %p");
     TEST(rectangleObjectData->Component, ==, TYPEOF(Rectangle), "%p, %p")
     TEST(rectangleObjectData->Offset, ==, 0, "%llu, %llu")
 
